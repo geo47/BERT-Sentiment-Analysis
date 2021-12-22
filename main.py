@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 import random
 import numpy as np
 
-from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.metrics import classification_report
 
 import torch
 from torch import optim, nn
@@ -16,62 +16,12 @@ from transformers import (
 )
 
 from collections import defaultdict
-from data.prepare_dataset import create_3_class_dataset, create_2_class_dataset, create_dataset
+from data.prepare_dataset import create_dataset
 from data_loader import PrepareDataset
 from model import BertSentimentClassifier, BertSequentialSentimentClassifier
 
 import logging
 logging.basicConfig(level=logging.ERROR)
-
-
-# RATING_STARS = ['0', '1', '2', '3', '4']
-# SENTIMENTS = ['negative', 'neutral', 'positive']
-# DATASET_GOOGLE_PLAY = 'google_play'
-# DATASET_YELP = 'yelp'
-# DATASET_AIRLINE = 'airline'
-# DATASET_IMDB = 'imdb'
-
-
-# # def to_sentiment(rating):
-# #     rating = int(rating)
-# #     if rating == 1:
-# #         return 0
-# #     elif rating == 2:
-# #         return 1
-# #     elif rating == 3:
-# #         return 2
-# #     elif rating == 4:
-# #         return 3
-# #     else:
-# #         return 4
-#
-# def to_sentiment(rating):
-#   rating = int(rating)
-#   if rating <= 2:
-#     return 0
-#   elif rating == 3:
-#     return 1
-#   else:
-#     return 2
-
-
-# def create_3_class_dataset(dataset_type):
-#     df = pd.read_csv('data/' + dataset_type + '/reviews.csv')
-#
-#     if dataset_type == DATASET_GOOGLE_PLAY:
-#         df = df.rename(columns={'content': 'text'})
-#         df['sentiment'] = df.score.apply(to_sentiment)
-#     elif dataset_type == DATASET_YELP:
-#         df['sentiment'] = df.stars.apply(to_sentiment)
-#     elif dataset_type == DATASET_AIRLINE:
-#         df['sentiment'] = df.score.apply(to_sentiment)
-#     elif dataset_type == DATASET_IMDB:
-#         df['sentiment'] = df.score.apply(to_sentiment)
-#
-#     df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
-#     df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)
-#
-#     return df_train, df_test, df_val
 
 
 def create_data_loader(df, tokenizer, max_len, bs):
@@ -93,6 +43,7 @@ def set_seed(seed_value=42):
     np.random.seed(seed_value)
     torch.manual_seed(seed_value)
     torch.cuda.manual_seed_all(seed_value)
+
 
 def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
     model = model.train()
@@ -208,14 +159,6 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--max_len", type=int, default=256, help="Maximum sequence length")
     args = parser.parse_args()
-
-
-    # df = pd.read_csv(args.dataset_file)
-    # df['sentiment'] = df.score.apply(to_sentiment)
-    #
-    #
-    # df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
-    # df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)
 
     # df_train, df_test, df_val = create_3_class_dataset(args.dataset)
     df_train, df_test, df_val, SENTIMENTS = create_dataset(args.dataset)

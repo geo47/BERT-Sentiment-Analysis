@@ -27,16 +27,35 @@ class PrepareDataset(Dataset):
     def __getitem__(self, item_idx):
         review = str(self.reviews[item_idx])
         target = self.targets[item_idx]
+
+        """
+        For every review text, the `encode_plus` will:
+        (1) Tokenize the sentence
+        (2) Add the `[CLS]` and `[SEP]` token to the start and end
+        (3) Truncate/Pad sentence to max length
+        (4) Map tokens to their IDs
+        (5) Create attention mask
+        (6) Return a dictionary of outputs
+        """
         encoded_output = self.tokenizer.encode_plus(
             review,
-            add_special_tokens=True,
-            max_length=self.max_len,
-            pad_to_max_length=True,
-            return_attention_mask=True,
-            return_token_type_ids=True,
-            return_tensors="pt",
+            add_special_tokens=True,    # Add `[CLS]` and `[SEP]`
+            max_length=self.max_len,    # Max length to truncate/pad
+            pad_to_max_length=True,     # Pad sentence to max length
+            return_attention_mask=True, # Return attention mask
+            # return_token_type_ids=True,
+            return_tensors="pt",        # Return PyTorch tensor
         )
 
+        # uncomment if `return_tensors` is disabled
+        # return {
+        #     "review_text": review,
+        #     "input_ids": torch.tensor(encoded_output["input_ids"]),
+        #     "attention_mask": torch.tensor(encoded_output["attention_mask"]),
+        #     "targets": torch.tensor(target, dtype=torch.long),
+        # }
+
+        # if `return_tensors` is enabled
         return {
             "review_text": review,
             "input_ids": encoded_output["input_ids"].flatten(),

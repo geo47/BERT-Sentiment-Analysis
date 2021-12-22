@@ -1,11 +1,9 @@
 from argparse import ArgumentParser
-from pathlib import Path
 # from tqdm import tqdm
 
-import pandas as pd
+import random
 import numpy as np
 
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix, classification_report
 
 import torch
@@ -18,42 +16,67 @@ from transformers import (
 )
 
 from collections import defaultdict
+from data.prepare_dataset import create_3_class_dataset, create_2_class_dataset, create_dataset
 from data_loader import PrepareDataset
-from model import SentimentClassifier
+from model import BertSentimentClassifier, BertSequentialSentimentClassifier
 
 import logging
 logging.basicConfig(level=logging.ERROR)
 
 
 # RATING_STARS = ['0', '1', '2', '3', '4']
-RATING_STARS = ['negative', 'neutral', 'positive']
+# SENTIMENTS = ['negative', 'neutral', 'positive']
+# DATASET_GOOGLE_PLAY = 'google_play'
+# DATASET_YELP = 'yelp'
+# DATASET_AIRLINE = 'airline'
+# DATASET_IMDB = 'imdb'
 
 
+# # def to_sentiment(rating):
+# #     rating = int(rating)
+# #     if rating == 1:
+# #         return 0
+# #     elif rating == 2:
+# #         return 1
+# #     elif rating == 3:
+# #         return 2
+# #     elif rating == 4:
+# #         return 3
+# #     else:
+# #         return 4
+#
 # def to_sentiment(rating):
-#     rating = int(rating)
-#     if rating == 1:
-#         return 0
-#     elif rating == 2:
-#         return 1
-#     elif rating == 3:
-#         return 2
-#     elif rating == 4:
-#         return 3
-#     else:
-#         return 4
+#   rating = int(rating)
+#   if rating <= 2:
+#     return 0
+#   elif rating == 3:
+#     return 1
+#   else:
+#     return 2
 
-def to_sentiment(rating):
-  rating = int(rating)
-  if rating <= 2:
-    return 0
-  elif rating == 3:
-    return 1
-  else:
-    return 2
+
+# def create_3_class_dataset(dataset_type):
+#     df = pd.read_csv('data/' + dataset_type + '/reviews.csv')
+#
+#     if dataset_type == DATASET_GOOGLE_PLAY:
+#         df = df.rename(columns={'content': 'text'})
+#         df['sentiment'] = df.score.apply(to_sentiment)
+#     elif dataset_type == DATASET_YELP:
+#         df['sentiment'] = df.stars.apply(to_sentiment)
+#     elif dataset_type == DATASET_AIRLINE:
+#         df['sentiment'] = df.score.apply(to_sentiment)
+#     elif dataset_type == DATASET_IMDB:
+#         df['sentiment'] = df.score.apply(to_sentiment)
+#
+#     df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
+#     df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)
+#
+#     return df_train, df_test, df_val
+
 
 def create_data_loader(df, tokenizer, max_len, bs):
     ds = PrepareDataset(
-        reviews=df["content"].to_numpy(),
+        reviews=df["text"].to_numpy(),
         targets=df["sentiment"].to_numpy(),
         tokenizer=tokenizer,
         max_len=max_len
@@ -62,7 +85,16 @@ def create_data_loader(df, tokenizer, max_len, bs):
     return DataLoader(ds, batch_size=bs, num_workers=4)
 
 
-def train_epoch(model, data_loader, batch_size, loss_fn, optimizer, device, scheduler, n_examples):
+def set_seed(seed_value=42):
+    """
+    Set seed for reproducibility.
+    """
+    random.seed(seed_value)
+    np.random.seed(seed_value)
+    torch.manual_seed(seed_value)
+    torch.cuda.manual_seed_all(seed_value)
+
+def train_epoch(model, data_loader, loss_fn, optimizer, device, scheduler, n_examples):
     model = model.train()
 
     losses = []
@@ -77,13 +109,7 @@ def train_epoch(model, data_loader, batch_size, loss_fn, optimizer, device, sche
 
         _, preds = torch.max(outputs, dim=1)
         loss = loss_fn(outputs, targets)
-        correct_predictions = correct_predictions + torch.sum(
-            preds == targets
-        )
-        # print(type(correct_predictions.double()))
-        # loss_batch = loss.item()
-        # if (idx % print_every) == 0:
-        #     print(f"The loss in {idx}th / {num_batches} batch is {loss_batch}")
+        correct_predictions += torch.sum(preds == targets)
         losses.append(loss.item())
 
         loss.backward()
@@ -152,10 +178,7 @@ def get_predictions(model, data_loader):
             attention_mask = d["attention_mask"].to(device)
             targets = d["targets"].to(device)
 
-            outputs = model(
-                input_ids=input_ids,
-                attention_mask=attention_mask
-            )
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
             _, preds = torch.max(outputs, dim=1)
 
             probs = F.softmax(outputs, dim=1)
@@ -166,7 +189,7 @@ def get_predictions(model, data_loader):
             real_values.extend(targets)
 
         # predictions: [[], [], []]
-    predictions = torch.stack(predictions).cpu()  # stack or concate lists of of tensors into single list of tensor
+    predictions = torch.stack(predictions).cpu()  # stack or concat lists of of tensors into single list of tensor
     prediction_probs = torch.stack(prediction_probs).cpu()
     real_values = torch.stack(real_values).cpu()
     return review_texts, predictions, prediction_probs, real_values
@@ -174,27 +197,28 @@ def get_predictions(model, data_loader):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument('--dataset_file', type=str, default='data/google_play/reviews.csv')
+    parser.add_argument('--dataset', type=str, default='google_play')
     parser.add_argument('--output_dir', type=str, default='output/bert_senti_model.bin')
     parser.add_argument('--bert_model', type=str, default='bert-base-cased',
                         help="Bert pre-trained model selected in the list: bert-base-uncased, "
                              "bert-large-uncased, bert-base-cased, bert-base-multilingual, bert-base-chinese.")
     # parser.add_argument("--do_lower_case", action="store_true")
     parser.add_argument("--batch_size", default=32, type=int, help="Total batch size for training.")
-    parser.add_argument("--learning_rate", default=1e-3, type=float, help="The initial learning rate for Adam.")
+    parser.add_argument("--learning_rate", default=2e-5, type=float, help="The initial learning rate for Adam.")
     parser.add_argument("--epochs", type=int, default=10, help="Number of epochs to train for")
     parser.add_argument("--max_len", type=int, default=256, help="Maximum sequence length")
     args = parser.parse_args()
 
 
-    df = pd.read_csv(args.dataset_file)
-    df['sentiment'] = df.score.apply(to_sentiment)
+    # df = pd.read_csv(args.dataset_file)
+    # df['sentiment'] = df.score.apply(to_sentiment)
+    #
+    #
+    # df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
+    # df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)
 
-
-    df_train, df_test = train_test_split(df, test_size=0.1, random_state=42)
-    df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=42)
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # df_train, df_test, df_val = create_3_class_dataset(args.dataset)
+    df_train, df_test, df_val, SENTIMENTS = create_dataset(args.dataset)
 
     tokenizer = BertTokenizer.from_pretrained(args.bert_model)
 
@@ -202,7 +226,18 @@ if __name__ == "__main__":
     val_data_loader = create_data_loader(df_val, tokenizer, args.max_len, args.batch_size)
     test_data_loader = create_data_loader(df_test, tokenizer, args.max_len, args.batch_size)
 
-    model = SentimentClassifier(args.bert_model, len(RATING_STARS))
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print(f'There are {torch.cuda.device_count()} GPU(s) available.')
+        print('Device name:', torch.cuda.get_device_name(0))
+    else:
+        print('No GPU available, using the CPU instead.')
+        device = torch.device("cpu")
+
+    set_seed(42)
+
+    # Initialize model
+    model = BertSequentialSentimentClassifier(args.bert_model, len(SENTIMENTS))
     model = model.to(device)
 
     total_steps = len(train_data_loader) * args.epochs
@@ -212,17 +247,19 @@ if __name__ == "__main__":
         num_warmup_steps=0,
         num_training_steps=total_steps
     )
+
     loss_fn = nn.CrossEntropyLoss().to(device)
 
     history = defaultdict(list)
     best_accuracy = 0
 
+    # Todo add tqdm library
     for epoch in range(args.epochs):
         print(f"Epoch {epoch + 1}/{args.epochs}")
         print("-" * 10)
 
         train_acc, train_loss = train_epoch(
-            model, train_data_loader, args.batch_size, loss_fn, optimizer, device, scheduler, len(df_train)
+            model, train_data_loader, loss_fn, optimizer, device, scheduler, len(df_train)
         )
 
         print(f"Epoch: {epoch}, Train loss: {train_loss}, accuracy: {train_acc}")
@@ -239,16 +276,11 @@ if __name__ == "__main__":
         history["val_loss"].append(val_loss)
 
         if val_acc > best_accuracy:
-            torch.save(model, args.output_dir)
+            torch.save(model.state_dict(), args.output_dir)
             best_accuracy = val_acc
-
-    # sample_text = "I really hate this movie"
-    # predictions, probabilities = get_predictions(model, tokenizer, sample_text, args.max_len)
-    # print(f'Text: {sample_text}, Prediction: {predictions[0]}, Probability: {np.max(probabilities[0])}')
-    # print()
 
     y_review_texts, y_pred, y_pred_probs, y_test = get_predictions(
         model,
         test_data_loader
     )
-    print(classification_report(y_test, y_pred, target_names=RATING_STARS))
+    print(classification_report(y_test, y_pred, target_names=SENTIMENTS))

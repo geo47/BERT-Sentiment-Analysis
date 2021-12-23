@@ -39,7 +39,7 @@ def to_sentiment(rating):
 
 
 def create_dataset(dataset_type):
-    if dataset_type == DATASET_AIRLINE:
+    if dataset_type == DATASET_AIRLINE or dataset_type == DATASET_CoLA:
         return create_2_class_dataset(dataset_type)
     elif dataset_type == DATASET_GOOGLE_PLAY or dataset_type == DATASET_YELP or \
         dataset_type == DATASET_IMDB:
@@ -61,17 +61,16 @@ def create_2_class_dataset(dataset_type):
         df = df.drop(['airline', 'id'], axis=1)
         df = df.rename(columns={'tweet': 'text'})
         df['text'] = df.text.apply(text_preprocessing_simple)
+
     elif dataset_type == DATASET_CoLA:
-        df = pd.read_csv('data/' + dataset_type + '/in_domain_train.tsv', delimiter='\t', header=None,
-                         names=['sentence_source', 'label', 'label_notes', 'sentence'])
-        df = pd.read_csv('data/' + dataset_type + '/in_domain_dev.tsv', delimiter='\t', header=None,
-                         names=['sentence_source', 'label', 'label_notes', 'sentence'])
+        df_training = pd.read_csv('data/' + dataset_type + '/in_domain_train.tsv', delimiter='\t', header=None,
+                         names=['sentence_source', 'sentiment', 'label_notes', 'text'])
+        df_testing = pd.read_csv('data/' + dataset_type + '/in_domain_dev.tsv', delimiter='\t', header=None,
+                         names=['sentence_source', 'sentiment', 'label_notes', 'text'])
 
-        # Report the number of sentences.
-        print('Number of training sentences: {:,}\n'.format(df.shape[0]))
-
-        # Display 10 random rows from the data.
-        df.sample(10)
+        df = df_training.append(df_testing, ignore_index=True)
+        df = df.sample(frac=1).reset_index(drop=True)
+        df = df.drop(['sentence_source', 'label_notes'], axis=1)
 
     df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
     df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)

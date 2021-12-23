@@ -1,7 +1,6 @@
 # BERT-Sentiment-Analysis
 Fine-Tuning BERT for Sentiment Analysis Task 
-
-Reference: [Sentiment Analysis with BERT and Transformers by Hugging Face using PyTorch and Python]((https://curiousily.com/posts/sentiment-analysis-with-bert-and-hugging-face-using-pytorch-and-python/)) 
+ 
 
 
 ## Test Results
@@ -43,3 +42,20 @@ weighted avg       0.75      0.74      0.75      1000
    macro avg       0.79      0.79      0.79       170
 weighted avg       0.79      0.79      0.79       170
 ```
+
+#### CoLA dataset
+```
+              precision    recall  f1-score   support
+
+    negative       0.80      0.61      0.69       146
+    positive       0.83      0.93      0.88       308
+
+    accuracy                           0.83       454
+   macro avg       0.82      0.77      0.79       454
+weighted avg       0.82      0.83      0.82       454
+```
+
+## References
+- [Sentiment Analysis with BERT and Transformers by Hugging Face using PyTorch and Python]((https://curiousily.com/posts/sentiment-analysis-with-bert-and-hugging-face-using-pytorch-and-python/))
+
+- [BERT Fine-Tuning Tutorial with PyTorch]((http://mccormickml.com/2019/07/22/BERT-fine-tuning/))

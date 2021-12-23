@@ -22,6 +22,8 @@ class BertSentimentClassifier(nn.Module):
                   with shape (batch_size, max_length)
         @return   out (logits) (torch.Tensor): an output tensor with shape (batch_size, num_labels)
         """
+
+        # pooling strategy over the final embeddings
         _, pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
         output = self.dropout(pooled_output)
         return self.out(output)
@@ -59,10 +61,17 @@ class BertSequentialSentimentClassifier(nn.Module):
                   with shape (batch_size, max_length)
         @return   out (logits) (torch.Tensor): an output tensor with shape (batch_size, num_labels)
         """
-        pooled_output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
 
         # Extract the last hidden state of the token `[CLS]` for classification task
-        last_hidden_state_cls = pooled_output[0][:, 0, :]
+        # On the output of the final (12th) transformer, only the first embedding (corresponding
+        # to the [CLS] token) is used by the classifier.
+        """
+        "The first token of every sequence is always a special classification token ([CLS]). The final 
+        hidden state corresponding to this token is used as the aggregate sequence representation for 
+        classification tasks." (from the BERT paper)
+        """
+        last_hidden_state_cls = output[0][:, 0, :]
 
         # Feed input to classifier to compute logits
         logits = self.classifier(last_hidden_state_cls)

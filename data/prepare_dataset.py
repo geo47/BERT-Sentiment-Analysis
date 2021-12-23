@@ -10,6 +10,7 @@ THREE_CLASS_SENTIMENTS = ['negative', 'neutral', 'positive']
 DATASET_GOOGLE_PLAY = 'google_play'
 DATASET_YELP = 'yelp'
 DATASET_AIRLINE = 'airline'
+DATASET_CoLA = 'cola'
 DATASET_IMDB = 'imdb'
 
 
@@ -47,6 +48,8 @@ def create_dataset(dataset_type):
 
 def create_2_class_dataset(dataset_type):
 
+    df = pd.DataFrame()
+
     if dataset_type == DATASET_AIRLINE:
         df_complaint = pd.read_csv('data/' + dataset_type + '/complaint.csv')
         df_complaint['sentiment'] = 0
@@ -58,11 +61,22 @@ def create_2_class_dataset(dataset_type):
         df = df.drop(['airline', 'id'], axis=1)
         df = df.rename(columns={'tweet': 'text'})
         df['text'] = df.text.apply(text_preprocessing_simple)
+    elif dataset_type == DATASET_CoLA:
+        df = pd.read_csv('data/' + dataset_type + '/in_domain_train.tsv', delimiter='\t', header=None,
+                         names=['sentence_source', 'label', 'label_notes', 'sentence'])
+        df = pd.read_csv('data/' + dataset_type + '/in_domain_dev.tsv', delimiter='\t', header=None,
+                         names=['sentence_source', 'label', 'label_notes', 'sentence'])
 
-        df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
-        df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)
+        # Report the number of sentences.
+        print('Number of training sentences: {:,}\n'.format(df.shape[0]))
 
-        return df_train, df_test, df_val, TWO_CLASS_SENTIMENTS
+        # Display 10 random rows from the data.
+        df.sample(10)
+
+    df_train, df_test = train_test_split(df, test_size=0.1, random_state=1000)
+    df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=1000)
+
+    return df_train, df_test, df_val, TWO_CLASS_SENTIMENTS
 
 
 def create_3_class_dataset(dataset_type):

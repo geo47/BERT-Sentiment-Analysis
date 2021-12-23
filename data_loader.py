@@ -34,17 +34,19 @@ class PrepareDataset(Dataset):
         (2) Add the `[CLS]` and `[SEP]` token to the start and end
         (3) Truncate/Pad sentence to max length
         (4) Map tokens to their IDs
-        (5) Create attention mask
+        (5) Create attention masks which explicitly differentiate real tokens from [PAD] tokens.
         (6) Return a dictionary of outputs
         """
+        # `tokenizer.encode` returns above four features. However, `tokenizer.encode_plus` returns
+        # all five features listed above.
         encoded_output = self.tokenizer.encode_plus(
             review,
-            add_special_tokens=True,    # Add `[CLS]` and `[SEP]`
-            max_length=self.max_len,    # Max length to truncate/pad
-            pad_to_max_length=True,     # Pad sentence to max length
-            return_attention_mask=True, # Return attention mask
+            add_special_tokens=True,        # Add `[CLS]` and `[SEP]`
+            max_length=self.max_len,        # Max length to truncate/pad
+            pad_to_max_length=True,         # Pad & truncate sentence to max length
+            return_attention_mask=True,     # Return attention mask
             # return_token_type_ids=True,
-            return_tensors="pt",        # Return PyTorch tensor
+            return_tensors="pt",            # Return PyTorch tensor
         )
 
         # uncomment if `return_tensors` is disabled

@@ -55,6 +55,22 @@ weighted avg       0.79      0.79      0.79       170
 weighted avg       0.82      0.83      0.82       454
 ```
 
+#### smile-annotation dataset
+```
+              precision    recall  f1-score   support
+
+       happy       0.88      0.95      0.91        56
+not-relevant       0.64      0.50      0.56        14
+       angry       0.00      0.00      0.00         2
+     disgust       0.00      0.00      0.00         1
+         sad       0.50      0.50      0.50         2
+    surprise       0.00      0.00      0.00         0
+
+    accuracy                           0.81        75
+   macro avg       0.34      0.32      0.33        75
+weighted avg       0.79      0.81      0.80        75
+```
+
 ## References
 - [Sentiment Analysis with BERT and Transformers by Hugging Face using PyTorch and Python]((https://curiousily.com/posts/sentiment-analysis-with-bert-and-hugging-face-using-pytorch-and-python/))
 

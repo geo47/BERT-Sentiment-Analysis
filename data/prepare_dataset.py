@@ -86,8 +86,6 @@ def create_3_class_dataset(dataset_type):
         df['sentiment'] = df.score.apply(to_sentiment)
     elif dataset_type == DATASET_YELP:
         df['sentiment'] = df.stars.apply(to_sentiment)
-    elif dataset_type == DATASET_AIRLINE:
-        df['sentiment'] = df.score.apply(to_sentiment)
     elif dataset_type == DATASET_IMDB:
         df['sentiment'] = df.score.apply(to_sentiment)
 
